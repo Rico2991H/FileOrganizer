@@ -4,20 +4,25 @@ import contextlib
 DB_PATH = "file_organizer.db"
 
 def create_database():
-	with contextlib.closing(sqlite3.connect(DB_PATH)) as conn:
-		with conn:
-			conn.executescript("""CREATE TABLE IF NOT EXISTS templates( 
+    with contextlib.closing(sqlite3.connect(DB_PATH)) as conn:
+        with conn:
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='templates'"
+                )
+            exists = cursor.fetchone() is not None
+            conn.executescript("""CREATE TABLE IF NOT EXISTS templates( 
 								id integer PRIMARY KEY, 
 								name TEXT UNIQUE NOT NULL);
 							
-							CREATE TABLE temp_rules(
+							CREATE TABLE IF NOT EXISTS temp_rules(
 							id integer PRIMARY KEY,
 							template_id integer NOT NULL,
 							extension TEXT NOT NULL,
 							destination TEXT NOT NULL,
 							FOREIGN KEY (template_id) REFERENCES templates(id));
 							""")
-	print("Database and tables created successfully.")
+    print("Database and tables created successfully.")
+    return exists
 
 
 def insert_template(name):
@@ -48,4 +53,11 @@ def get_template(template_name):
             cursor.execute("SELECT extension, destination FROM temp_rules WHERE template_id = ?", (template_id[0],))
             return dict(cursor.fetchall())
         else:
-            return None 
+            return None
+
+def delete_all_templates():
+    with contextlib.closing(sqlite3.connect(DB_PATH)) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM templates")
+        cursor.execute("DELETE FROM temp_rules")
+        print("database cleared")
